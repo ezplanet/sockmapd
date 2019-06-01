@@ -1,0 +1,36 @@
+{
+  "database": {
+    "host": ["dbnode1.ezplanet.org", "dbnode2.ezplanet.org"],
+    "port": "3306",
+    "username": "postmap",
+    "password": "secret"
+  },
+  "sysconfig": {
+    "port": "2224",
+    "logfile": "/tmp/sockmapd.log"
+  },
+  "postmaps": [
+    {
+      "service": "blacklist",
+      "database" : "postfix",
+      "table": "blackwhite",
+      "key": "name",
+      "value": "status",
+      "reason": "reason"
+    },
+    {
+      "service": "clients",
+      "database" : "postfix",
+      "table": "blackwhite",
+      "key": "name",
+      "value": "status",
+      "reason": "reason"
+    },
+    {
+      "service": "recipient",
+      "database" : "dbmail",
+      "table": "dbmail_aliases",
+      "key": "alias"
+    }
+  ]
+}
