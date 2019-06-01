@@ -1,11 +1,18 @@
 package base
 
 import (
+	"flag"
 	"testing"
 )
 
-func TestDbConnections(t *testing.T) {
-	err := InitializeConfiguration("../config.json")
+var config = flag.String("config", "", "configuration file")
+
+// TestInitializeDatabase: tests the Postmap service
+// Requires: a valid database connection and configuration file
+// Invoke with: "go test ./... - v -args -config=/valid/path/to/config.json"
+func TestInitializeDatabase(t *testing.T) {
+	t.Log(*config)
+	err := InitializeConfiguration(*config)
 	if err != nil {
 		t.Error("Error reading configuration file:", err)
 	}

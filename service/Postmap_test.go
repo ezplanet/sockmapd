@@ -1,13 +1,19 @@
 package service
 
 import (
+	"flag"
 	"sockmapd/base"
 	"sockmapd/model"
 	"testing"
 )
 
+var config = flag.String("config", "", "configuration file")
+
+// TestPostmap: tests the Postmap service
+// Requires: a valid database connection and configuration file
+// Invoke with: "go test ./... - v -args -config=/valid/path/to/config.json"
 func TestPostmap(t *testing.T) {
-	err := base.InitializeConfiguration("../config.json")
+	err := base.InitializeConfiguration(*config)
 	if err != nil {
 		t.Error("Error reading configuration file:", err)
 	}
@@ -33,7 +39,7 @@ func TestPostmap(t *testing.T) {
 	request.Key = "hello@buydirect4u.co.uk"
 	response = GetPostmap(request)
 	t.Log("Test response: ", response)
-	if response != "OK REJECT Sender identified as spammer"  {
+	if response != "OK REJECT Sender identified as spammer" {
 		t.Error("Response payload mismatch")
 	}
 	//
@@ -41,7 +47,7 @@ func TestPostmap(t *testing.T) {
 	request.Key = "someone@somewhere.com"
 	response = GetPostmap(request)
 	t.Log("Test response: ", response)
-	if response != "NOTFOUND "  {
+	if response != "NOTFOUND " {
 		t.Error("Response payload mismatch")
 	}
 	//
@@ -49,7 +55,7 @@ func TestPostmap(t *testing.T) {
 	request.Key = "someone@somewhere.com"
 	response = GetPostmap(request)
 	t.Log("Test response: ", response)
-	if response != "TEMP internal configuration error, please try again later"  {
+	if response != "TEMP internal configuration error, please try again later" {
 		t.Error("Response payload mismatch")
 	}
 }
