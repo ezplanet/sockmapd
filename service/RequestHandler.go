@@ -56,7 +56,10 @@ func HandleConnection(conn net.Conn) {
 		return
 	}
 	response := GetPostmap(request)
-	log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, response)
+	// Suppress log entry if the Key = KEEPALIVE to avoid flooding log file
+	if request.Key != base.StrKEEPALIVE {
+		log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, response)
+	}
 	_, err = conn.Write([]byte(string(encodeResponse(response))))
 	if err != nil {
 		log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, err)
