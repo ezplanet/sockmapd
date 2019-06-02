@@ -1,7 +1,9 @@
 # sockmapd
 
-Go **sockmapd** server - A Mail Transfer Agent (MTA) [**socketmap**](http://www.postfix.org/socketmap_table.5.html) 
-server daemon written in Go Lang that uses configurable database repositories for [lookup tables](http://www.postfix.org/DATABASE_README.html).
+**sockmapd** is a [**socketmap**](http://www.postfix.org/socketmap_table.5.html) server daemon for Mail Transfer Agents
+(MTA) that uses configurable database repositories for [lookup tables](http://www.postfix.org/DATABASE_README.html).
+
+**sockmapd** is written in Go Lang
 
 ## Purpose
 Mail Transfer Agents like Sendmail and [Postfix](http://www.postfix.org) can use hash files or sockemaps to lookup
