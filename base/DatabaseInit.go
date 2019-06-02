@@ -35,11 +35,14 @@ import (
 
 var postmapDb map[string]model.PostmapDb
 
+// InitializeDatabase: get database parameters and socketmap lookup maps from the configuration, then
+// initialize an internal map holding socketmap mappings and database connection handler
 func InitializeDatabase() error {
 	conf := GetConfiguration()
 	dbconnsMap := make(map[string]*sql.DB)
 	postmapDbMap := make(map[string]model.PostmapDb)
 	var myPostmapDb model.PostmapDb
+	closeDbConnections()
 	for i := range conf.Postmaps {
 		if dbconnsMap[conf.Postmaps[i].Database] == nil {
 			db, err := openDatabaseConnection(conf.Database, conf.Postmaps[i].Database)
@@ -50,9 +53,9 @@ func InitializeDatabase() error {
 			dbconnsMap[conf.Postmaps[i].Database] = db
 		}
 		myPostmapDb.DbConn = dbconnsMap[conf.Postmaps[i].Database]
-		myPostmapDb.Table  = conf.Postmaps[i].Table
-		myPostmapDb.Key    = conf.Postmaps[i].Key
-		myPostmapDb.Value  = conf.Postmaps[i].Value
+		myPostmapDb.Table = conf.Postmaps[i].Table
+		myPostmapDb.Key = conf.Postmaps[i].Key
+		myPostmapDb.Value = conf.Postmaps[i].Value
 		myPostmapDb.Reason = conf.Postmaps[i].Reason
 		postmapDbMap[conf.Postmaps[i].Service] = myPostmapDb
 	}
@@ -60,8 +63,9 @@ func InitializeDatabase() error {
 	return nil
 }
 
-func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, error){
-	// MySQL
+// openDatabaseConnection: try to open a database connection to the host in the given hosts array and
+// return a valid db connection or an error
+func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, error) {
 	var db *sql.DB
 	// Try all hosts in the Host array and save the connection that first succeeds
 	for i := range dbConfig.Host {
@@ -83,6 +87,15 @@ func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, 
 	return db, error(fmt.Errorf("could not get a DB connection"))
 }
 
+// closeDbConnection: loop throup the postmapDb map, close the db connection and then remove the map entry
+func closeDbConnections() {
+	for key, value := range postmapDb {
+		_ = value.DbConn.Close()
+		delete(postmapDb, key)
+	}
+}
+
+// GetPostmapDb: return the postmapDb map
 func GetPostmapDb() map[string]model.PostmapDb {
 	return postmapDb
 }

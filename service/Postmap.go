@@ -35,40 +35,41 @@ import (
 	"sockmapd/model"
 )
 
-func GetPostmap (request model.Request) string {
-	postmapDbs := base.GetPostmapDb()
-	if len(postmapDbs[request.Service].Key) == 0 {
+func GetPostmap(request model.Request) string {
+	postmapDbMap := base.GetPostmapDb()
+	if len(postmapDbMap[request.Service].Key) == 0 {
 		log.Printf("Service '%s' not found in configuration file", request.Service)
 		return base.SmapTEMP + base.StrInternalERROR
 	}
-	err := postmapDbs[request.Service].DbConn.Ping()
+	err := postmapDbMap[request.Service].DbConn.Ping()
 	if err != nil {
 		log.Printf("%s: %s", base.StrERROR, err)
 		// If the DB connection fails, then try to re-initialize the DB connections, this is
 		// necessary if we have DB replication or cluster (not supported by the sql-driver, so
 		// that connection is attempted to another available node
 		err = base.InitializeDatabase()
+		postmapDbMap = base.GetPostmapDb()
 		if err != nil {
 			log.Printf("%s: %s - after DB re-initialization", base.StrERROR, err)
 			return base.SmapTEMP + base.StrTemporaryERROR
 		}
 	}
 	var queryValue string
-	if len(postmapDbs[request.Service].Value) > 0 {
-		queryValue = postmapDbs[request.Service].Value
-		if len(postmapDbs[request.Service].Reason) > 0 {
-			queryValue = queryValue + "," + postmapDbs[request.Service].Reason
+	if len(postmapDbMap[request.Service].Value) > 0 {
+		queryValue = postmapDbMap[request.Service].Value
+		if len(postmapDbMap[request.Service].Reason) > 0 {
+			queryValue = queryValue + "," + postmapDbMap[request.Service].Reason
 		}
 	} else {
-		queryValue = postmapDbs[request.Service].Key
+		queryValue = postmapDbMap[request.Service].Key
 	}
-	postmapQuery := fmt.Sprintf("SELECT %s FROM %s WHERE %s = '%s'", queryValue, postmapDbs[request.Service].Table,
-		postmapDbs[request.Service].Key, request.Key)
+	postmapQuery := fmt.Sprintf("SELECT %s FROM %s WHERE %s = '%s'", queryValue, postmapDbMap[request.Service].Table,
+		postmapDbMap[request.Service].Key, request.Key)
 
-	row := postmapDbs[request.Service].DbConn.QueryRow(postmapQuery)
+	row := postmapDbMap[request.Service].DbConn.QueryRow(postmapQuery)
 	var rowModel model.Response
 	var response string
-	if len(postmapDbs[request.Service].Reason) > 0 {
+	if len(postmapDbMap[request.Service].Reason) > 0 {
 		err = row.Scan(&rowModel.Value, &rowModel.Reason)
 	} else {
 		err = row.Scan(&rowModel.Value)
@@ -76,7 +77,7 @@ func GetPostmap (request model.Request) string {
 	if err == sql.ErrNoRows {
 		response = base.SmapNOTFOUND
 	} else {
-		if postmapDbs[request.Service].Value == "" || rowModel.Value == base.StrOK || rowModel.Value == base.StrREJECT {
+		if postmapDbMap[request.Service].Value == "" || rowModel.Value == base.StrOK || rowModel.Value == base.StrREJECT {
 			response = base.SmapOK + rowModel.Value
 		} else {
 			response = rowModel.Value

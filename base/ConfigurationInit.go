@@ -34,9 +34,18 @@ import (
 )
 
 var configuration model.Configuration
+var configFile string
 
-func InitializeConfiguration (configurationFile string) error {
-	file, _ := os.Open(configurationFile)
+// InitializeConfiguration:
+// configurationFile is an  optional parameter. It is called. This function is called with the
+// configuration file as parameter by main() at startup, subsequently the file path is saved and
+// re-used when the function is called again when a SIGHUP or SIGUSR1 is triggered.
+// The configuration file is opened and the content copied into the Configuration object.
+func InitializeConfiguration(configurationFile ...string) error {
+	if len(configurationFile) == 1 {
+		configFile = configurationFile[0]
+	}
+	file, _ := os.Open(configFile)
 	defer file.Close()
 	decoder := json.NewDecoder(file)
 	var conf model.Configuration
@@ -56,6 +65,7 @@ func InitializeConfiguration (configurationFile string) error {
 	return nil
 }
 
+// GetConfiguration: returns the Configuration object
 func GetConfiguration() model.Configuration {
 	return configuration
 }

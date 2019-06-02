@@ -52,7 +52,7 @@ func main() {
 
 	err = base.InitializeConfiguration(config)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, base.StrTerminated)
 	}
 	conf := base.GetConfiguration()
 	if len(conf.SysConfig.Logfile) > 0 {
@@ -69,8 +69,9 @@ func main() {
 	}
 	err = base.InitializeDatabase()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(err, base.StrTerminated)
 	}
+	base.ProcessSignal()
 	log.Println("Listening to port: ", port)
 	listener, err := net.Listen("tcp4", ":"+port)
 	if err != nil {

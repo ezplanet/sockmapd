@@ -29,3 +29,14 @@ func TestInitializeDatabase(t *testing.T) {
 		}
 	}
 }
+
+func TestCloseDbConnections(t *testing.T) {
+	postmapDb := GetPostmapDb()
+	if len(postmapDb) == 0 {
+		t.Error("postmapDb should be populated with config file map data")
+	}
+	closeDbConnections()
+	if len(postmapDb) > 0 {
+		t.Error("postmapDb should be empty")
+	}
+}
