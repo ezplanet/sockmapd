@@ -28,7 +28,6 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/benthor/clustersql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"sockmapd/base"
@@ -45,7 +44,7 @@ func GetPostmap(request model.Request) string {
 	if err != nil {
 		log.Printf("%s: %s", base.StrERROR, err)
 		// If the DB connection fails, then try to re-initialize the DB connections, this is
-		// necessary if we have DB replication or cluster (not supported by the sql-driver, so
+		// necessary if we have DB replication or cluster (not supported by the sql-driver) so
 		// that connection is attempted to another available node
 		err = base.InitializeDatabase()
 		postmapDbMap = base.GetPostmapDb()
