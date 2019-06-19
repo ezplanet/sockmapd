@@ -22,7 +22,7 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//
+
 package service
 
 import (
@@ -32,7 +32,6 @@ import (
 	"net"
 	"sockmapd/base"
 	"sockmapd/model"
-	"strconv"
 	"strings"
 )
 
@@ -41,28 +40,32 @@ import (
 // request : "[length]:[request],"
 // response: "[length]:[response],"
 func HandleConnection(conn net.Conn) {
+	var response string
 	remote := strings.Split(conn.RemoteAddr().String(), ":")
-	netData, err := bufio.NewReader(conn).ReadString(',')
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	payload := strings.TrimSpace(string(netData))
-	//log.Printf("%s - Received: >%s<\n", remote[0], payload)
-	var request model.Request
-	request, err = parsePostmap(payload)
-	if err != nil {
-		log.Printf("%s - %s parsing request payload: '%s'", remote[0], base.StrERROR, payload)
-		return
-	}
-	response := GetPostmap(request)
-	// Suppress log entry if the Key = KEEPALIVE to avoid flooding log file
-	if request.Key != base.StrKEEPALIVE {
-		log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, response)
-	}
-	_, err = conn.Write([]byte(string(encodeResponse(response))))
-	if err != nil {
-		log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, err)
+	for {
+		netData, err := bufio.NewReader(conn).ReadString(',')
+		if err != nil {
+			if err.Error() != "EOF" {
+				log.Println(err)
+			}
+			break
+		}
+		var request model.Request
+		request, err = parsePostmap(netData)
+		if err != nil {
+			log.Printf("%s - %s: %s - parsing request: '%s'", remote[0], base.StrERROR, err, request)
+			response = base.SmapPERM + err.Error()
+		} else {
+			response = GetPostmap(request)
+			// Suppress log entry if the Key = KEEPALIVE to avoid flooding log file
+			if request.Key != base.StrKEEPALIVE {
+				log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, response)
+			}
+		}
+		_, err = conn.Write([]byte(NetStringEncode(response)))
+		if err != nil {
+			log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, err)
+		}
 	}
 	_ = conn.Close()
 }
@@ -72,25 +75,15 @@ func HandleConnection(conn net.Conn) {
 // request: "[length]:[map] [key],"
 func parsePostmap(request string) (model.Request, error) {
 	var req model.Request
-	request = strings.TrimRight(request, ",")
-	if len(request) > 0 {
-		payload := strings.SplitN(request, ":", 2)
-		size, err := strconv.Atoi(payload[0])
-		if err != nil {
-			return req, fmt.Errorf("request checksum is not numeric")
-		}
-		if size != len(payload[1]) {
-			return req, fmt.Errorf("request checksum mismatch: %d != %d", size, len(payload[1]))
-		}
-		elements := strings.Split(payload[1], " ")
-		req.Service = elements[0]
-		req.Key = elements[1]
-		return req, nil
-	} else {
-		return req, fmt.Errorf("empty request")
+	payload, err := NetStringDecode(request)
+	if err != nil {
+		return req, err
 	}
-}
-
-func encodeResponse(response string) string {
-	return fmt.Sprintf("%d:%s,", len(response), response)
+	elements := strings.Split(payload, " ")
+	if len(elements) != 2 {
+		return req, fmt.Errorf(base.ErrParseInvalid)
+	}
+	req.Service = elements[0]
+	req.Key = elements[1]
+	return req, nil
 }

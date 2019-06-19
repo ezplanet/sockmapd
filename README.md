@@ -31,7 +31,7 @@ command line.
 ## Feature: socketmap request/response
 Socketmap request queries have the format of a [netstring](http://cr.yp.to/proto/netstrings.txt) as follows:
 
-    [len]":"[query]","
+    "[len]:[query],"
     
 Example: 
 

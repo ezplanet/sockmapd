@@ -23,55 +23,45 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+//
+// This class includes the services necessary to handle the encoding and decoding of netstrings
+//
+
 package service
 
 import (
-	"testing"
+	"fmt"
+	"sockmapd/base"
+	"strconv"
+	"strings"
 )
 
-func TestRequestHandlerParse(t *testing.T) {
-	req, err := parsePostmap("45:recipient 2321:2321a:11212a:1212b:cc113:::232,")
-	if err != nil {
-		t.Errorf("Got error: %s", err)
-	}
+// Encode: takes a regular string as input and returns a netstring https://en.wikipedia.org/wiki/Netstring
+// that is a byte encoded string with the format "[len]:[mystring],"
+// input : "my string"
+// return: [length]:[mystring],"
+func NetStringEncode(input string) string {
+	netstring := fmt.Sprintf("%d:%s,", len(input), input)
+	return netstring
+}
 
-	if req.Service != "recipient" {
-		t.Errorf("Service parsed incorrectly")
-	}
-	if req.Key != "2321:2321a:11212a:1212b:cc113:::232" {
-		t.Errorf("Key parsed incorrectly")
-	}
-	t.Log(req.Service, req.Key)
-
-	req, err = parsePostmap("41:recipient somebody@somewhere.com,")
-	if err != nil {
-		t.Logf("Got error: %s", err)
-	} else {
-		t.Errorf("This should not pass: %s %s", req.Service, req.Key)
-	}
-
-	req, err = parsePostmap("22:somebody@somewhere.com,")
-	if err != nil {
-		t.Logf("Got error: %s", err)
-		if err.Error() != "invalid request format" {
-			t.Errorf("Error should be: 'invalid request format'")
-			t.Fail()
+// NetStringDecode: decodes and validates a netstring, returns the payload or an error
+func NetStringDecode(netstring string) (string, error) {
+	netstring = strings.TrimRight(netstring, ",")
+	if len(netstring) > 0 {
+		payload := strings.SplitN(netstring, ":", 2)
+		if len(payload) != 2 {
+			return "", fmt.Errorf(base.ErrNsInvalid)
 		}
+		size, err := strconv.Atoi(payload[0])
+		if err != nil {
+			return "", fmt.Errorf(base.ErrNsLenNotNumeric)
+		}
+		if size != len(payload[1]) {
+			return "", fmt.Errorf("%s: %d != %d", base.ErrNsLenMismatch, size, len(payload[1]))
+		}
+		return payload[1], nil
 	} else {
-		t.Errorf("This should not pass: %s %s", req.Service, req.Key)
-	}
-
-	req, err = parsePostmap("XX:recipient somebody@somedomain.somesuffix,")
-	if err != nil {
-		t.Logf("Got error: %s", err)
-	} else {
-		t.Errorf("This should not pass: %s %s", req.Service, req.Key)
-	}
-
-	req, err = parsePostmap("")
-	if err != nil {
-		t.Logf("Got error: %s", err)
-	} else {
-		t.Errorf("This should not pass: %s %s", req.Service, req.Key)
+		return "", fmt.Errorf(base.ErrNsEmpty)
 	}
 }
