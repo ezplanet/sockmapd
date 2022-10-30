@@ -39,8 +39,8 @@ if my request is to lookup for **someone@somewhere.com** in the **recipient** ma
 
     "32:recipient someone@somewhere.com,"
     
-where 32 is the length of "recipient somebody@somewhere.com"
-in front of this request, **sockmapd** queries the database table mapped to the socketmap in the configuration file
+where 32 is the length of "recipient somebody@somewhere.com".
+In front of this request, **sockmapd** queries the database table mapped to the socketmap in the configuration file
 and returns a response as follows:
 
     "9:NOTFOUND ,"

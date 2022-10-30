@@ -6,6 +6,8 @@
     "password": "secret"
   },
   "sysconfig": {
+    "run_as_user": "anonymous",
+    "run_as_group": "anonymous",
     "port": "2224",
     "logfile": "/tmp/sockmapd.log"
   },
