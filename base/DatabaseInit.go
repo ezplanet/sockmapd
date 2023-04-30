@@ -22,7 +22,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//
 package base
 
 import (
@@ -87,7 +86,7 @@ func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, 
 	return db, error(fmt.Errorf("could not get a DB connection"))
 }
 
-// closeDbConnection: loop throup the postmapDb map, close the db connection and then remove the map entry
+// closeDbConnection: loop through the postmapDb map, close the db connection and then remove the map entry
 func closeDbConnections() {
 	for key, value := range postmapDb {
 		_ = value.DbConn.Close()
