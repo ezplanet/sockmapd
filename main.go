@@ -22,7 +22,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//
 package main
 
 import (
@@ -30,14 +29,17 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/user"
 	"sockmapd/base"
 	"sockmapd/service"
 	"strconv"
+	"syscall"
 )
 
 func main() {
 	var port string
 	var config string
+
 	flag.StringVar(&port, "p", base.TcpPORT, "Please specify a valid port number between 1025 and 65535")
 	flag.StringVar(&config, "c", "config.json", "Please specify a valid configuration file path")
 	flag.Parse()
@@ -55,6 +57,7 @@ func main() {
 		log.Fatal(err, base.StrTerminated)
 	}
 	conf := base.GetConfiguration()
+
 	if len(conf.SysConfig.Logfile) > 0 {
 		f, err := os.OpenFile(conf.SysConfig.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
 		if err != nil {
@@ -64,6 +67,35 @@ func main() {
 			log.SetOutput(f)
 		}
 	}
+
+	// Dropping user and group privileges (group must be first)
+
+	if len(conf.SysConfig.RunAsGroup) > 0 {
+		groupStrut, err := user.LookupGroup(conf.SysConfig.RunAsGroup)
+		if err != nil {
+			log.Fatalf("Error %s, could not run as group %s - terminating", err, conf.SysConfig.RunAsGroup)
+		} else {
+			gid, err := strconv.Atoi(groupStrut.Gid)
+			if err != nil {
+				log.Fatalf("Error %s, could not run as group %s - terminating", err, conf.SysConfig.RunAsGroup)
+			}
+			syscall.Setgid(gid)
+		}
+	}
+
+	if len(conf.SysConfig.RunAsUser) > 0 {
+		userStrut, err := user.Lookup(conf.SysConfig.RunAsUser)
+		if err != nil {
+			log.Fatalf("Error %s, could not run as user %s - terminating", err, conf.SysConfig.RunAsUser)
+		} else {
+			uid, err := strconv.Atoi(userStrut.Uid)
+			if err != nil {
+				log.Fatalf("Error %s, could not run as user %s - terminating", err, conf.SysConfig.RunAsUser)
+			}
+			syscall.Setuid(uid)
+		}
+	}
+
 	if len(conf.SysConfig.Port) > 0 {
 		port = conf.SysConfig.Port
 	}
