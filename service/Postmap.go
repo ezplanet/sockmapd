@@ -22,34 +22,34 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//
 package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"log"
 	"sockmapd/base"
+	"sockmapd/logger"
 	"sockmapd/model"
 )
 
 func GetPostmap(request model.Request) string {
 	postmapDbMap := base.GetPostmapDb()
 	if len(postmapDbMap[request.Service].Key) == 0 {
-		log.Printf("Service '%s' not found in configuration file", request.Service)
+		logger.Log.Error().Msgf("Service '%s' not found in configuration file", request.Service)
 		return base.SmapTEMP + base.StrInternalERROR
 	}
 	err := postmapDbMap[request.Service].DbConn.Ping()
 	if err != nil {
-		log.Printf("%s: %s", base.StrERROR, err)
+		logger.Log.Error().Msgf("%s: %s", base.StrERROR, err)
 		// If the DB connection fails, then try to re-initialize the DB connections, this is
 		// necessary if we have DB replication or cluster (not supported by the sql-driver) so
 		// that connection is attempted to another available node
 		err = base.InitializeDatabase()
 		postmapDbMap = base.GetPostmapDb()
 		if err != nil {
-			log.Printf("%s: %s - after DB re-initialization", base.StrERROR, err)
+			logger.Log.Error().Msgf("%s: %s - after DB re-initialization", base.StrERROR, err)
 			return base.SmapTEMP + base.StrTemporaryERROR
 		}
 	}
@@ -73,7 +73,7 @@ func GetPostmap(request model.Request) string {
 	} else {
 		err = row.Scan(&rowModel.Value)
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		response = base.SmapNOTFOUND
 	} else {
 		if postmapDbMap[request.Service].Value == "" || rowModel.Value == base.StrOK || rowModel.Value == base.StrREJECT {

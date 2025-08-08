@@ -25,8 +25,12 @@
 
 package base
 
+const LogFile = "stderr"
+const LogLevel = "info"
+
 const StrERROR = "ERROR"
 const TcpPORT = "2224"
+const TcpTimeout = 60 // 60 Seconds
 
 // Socketmap standard errors and responses
 const SmapOK = "OK "

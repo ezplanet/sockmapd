@@ -28,13 +28,13 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"log"
+	"sockmapd/logger"
 	"sockmapd/model"
 )
 
 var postmapDb map[string]model.PostmapDb
 
-// InitializeDatabase: get database parameters and socketmap lookup maps from the configuration, then
+// InitializeDatabase get database parameters and socketmap lookup maps from the configuration, then
 // initialize an internal map holding socketmap mappings and database connection handler
 func InitializeDatabase() error {
 	conf := GetConfiguration()
@@ -46,7 +46,7 @@ func InitializeDatabase() error {
 		if dbconnsMap[conf.Postmaps[i].Database] == nil {
 			db, err := openDatabaseConnection(conf.Database, conf.Postmaps[i].Database)
 			if err != nil {
-				log.Printf("%s: %s", StrERROR, err)
+				logger.Log.Error().Msgf("%s: %s", StrERROR, err)
 				return fmt.Errorf("%s: %s for database %s", StrERROR, err, conf.Postmaps[i].Database)
 			}
 			dbconnsMap[conf.Postmaps[i].Database] = db
@@ -62,7 +62,7 @@ func InitializeDatabase() error {
 	return nil
 }
 
-// openDatabaseConnection: try to open a database connection to the host in the given hosts array and
+// openDatabaseConnection try to open a database connection to the host in the given hosts array and
 // return a valid db connection or an error
 func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, error) {
 	var db *sql.DB
@@ -73,12 +73,12 @@ func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, 
 
 		db, err := sql.Open("mysql", dbUri)
 		if err != nil {
-			log.Printf("%s: %s", StrERROR, err)
+			logger.Log.Error().Msgf("%s: %s", StrERROR, err)
 			continue
 		}
 		err = db.Ping()
 		if err != nil {
-			log.Printf("%s: %s", StrERROR, err)
+			logger.Log.Error().Msgf("%s: %s", StrERROR, err)
 			continue
 		}
 		return db, nil
@@ -86,7 +86,7 @@ func openDatabaseConnection(dbConfig model.DbConfig, database string) (*sql.DB, 
 	return db, error(fmt.Errorf("could not get a DB connection"))
 }
 
-// closeDbConnection: loop through the postmapDb map, close the db connection and then remove the map entry
+// closeDbConnection loop through the postmapDb map, close the db connection and then remove the map entry
 func closeDbConnections() {
 	for key, value := range postmapDb {
 		_ = value.DbConn.Close()
@@ -94,7 +94,7 @@ func closeDbConnections() {
 	}
 }
 
-// GetPostmapDb: return the postmapDb map
+// GetPostmapDb return the postmapDb map
 func GetPostmapDb() map[string]model.PostmapDb {
 	return postmapDb
 }

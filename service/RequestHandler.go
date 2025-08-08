@@ -28,52 +28,63 @@ package service
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"sockmapd/base"
+	"sockmapd/logger"
 	"sockmapd/model"
 	"strings"
+	"time"
 )
 
-// HandleConnection: takes an incoming tcp connection and processes the request, then encodes the response into a
+// HandleConnection takes an incoming tcp connection and processes the request, then encodes the response into a
 // netstring and returns the reponse to the calling clients
 // request : "[length]:[request],"
 // response: "[length]:[response],"
-func HandleConnection(conn net.Conn) {
+func HandleConnection(conn net.Conn, count int) {
 	var response string
+
 	remote := strings.Split(conn.RemoteAddr().String(), ":")
+	conn.SetReadDeadline(time.Now().Add(time.Second * time.Duration(base.TcpTimeout)))
 	for {
 		netData, err := bufio.NewReader(conn).ReadString(',')
 		if err != nil {
 			if err.Error() != "EOF" {
-				log.Println(err)
+				logger.Log.Error().Msgf("%d - %s - %s", count, remote[0], err)
 			}
 			break
 		}
 		var request model.Request
-		request, err = parsePostmap(netData)
+		request, err = parsePostmap(netData, count)
 		if err != nil {
-			log.Printf("%s - %s: %s - parsing request: '%s'", remote[0], base.StrERROR, err, request)
+			logger.Log.Error().Msgf("%d - %s - %s: %s - parsing request: '%s'", count, remote[0], base.StrERROR, err, request)
 			response = base.SmapPERM + err.Error()
 		} else {
 			response = GetPostmap(request)
 			// Suppress log entry if the Key = KEEPALIVE to avoid flooding log file
 			if request.Key != base.StrKEEPALIVE {
-				log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, response)
+				logger.Log.Info().Msgf("%d - %s - %s:%s - %s", count, remote[0], request.Service, request.Key, response)
 			}
 		}
-		_, err = conn.Write([]byte(NetStringEncode(response)))
+		bytes, err := conn.Write([]byte(NetStringEncode(response)))
 		if err != nil {
-			log.Printf("%s - %s:%s - %s", remote[0], request.Service, request.Key, err)
+			logger.Log.Error().Msgf("%d - %s - %s:%s - %s", count, remote[0], request.Service, request.Key, err)
+		} else {
+			if request.Key != base.StrKEEPALIVE {
+				logger.Log.Trace().Msgf("%d - %s - %s:%s - %d bytes written", count, remote[0], request.Service, request.Key, bytes)
+			}
 		}
 	}
-	_ = conn.Close()
+	err := conn.Close()
+	logger.Log.Trace().Msgf("%d - %s - connection closed result: %v", count, remote[0], err)
 }
 
-// parsePostmap: parses a postmap query string and returns a Request object containing the two elements of the
+// parsePostmap parses a postmap query string and returns a Request object containing the two elements of the
 // query string: service (or map) and key
 // request: "[length]:[map] [key],"
-func parsePostmap(request string) (model.Request, error) {
+func parsePostmap(request string, count int) (model.Request, error) {
+	if !strings.Contains(request, base.StrKEEPALIVE) {
+		logger.Log.Trace().Msgf("%d - parsing Postmap request: '%s'", count, request)
+	}
 	var req model.Request
 	payload, err := NetStringDecode(request)
 	if err != nil {
@@ -81,6 +92,7 @@ func parsePostmap(request string) (model.Request, error) {
 	}
 	elements := strings.Split(payload, " ")
 	if len(elements) != 2 {
+		logger.Log.Debug().Msgf("%d - %s: request string has more than 2 elements: %d", count, base.ErrParseInvalid, len(elements))
 		return req, fmt.Errorf(base.ErrParseInvalid)
 	}
 	req.Service = elements[0]

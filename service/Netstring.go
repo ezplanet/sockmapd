@@ -45,7 +45,7 @@ func NetStringEncode(input string) string {
 	return netstring
 }
 
-// NetStringDecode: decodes and validates a netstring, returns the payload or an error
+// NetStringDecode decodes and validates a netstring, returns the payload or an error
 func NetStringDecode(netstring string) (string, error) {
 	netstring = strings.TrimRight(netstring, ",")
 	if len(netstring) > 0 {

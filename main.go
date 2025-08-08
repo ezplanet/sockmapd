@@ -27,10 +27,12 @@ package main
 import (
 	"flag"
 	"log"
+	"math"
 	"net"
 	"os"
 	"os/user"
 	"sockmapd/base"
+	"sockmapd/logger"
 	"sockmapd/service"
 	"strconv"
 	"syscall"
@@ -39,17 +41,26 @@ import (
 func main() {
 	var port string
 	var config string
+	var logfile string
+	var loglevel string
 
 	flag.StringVar(&port, "p", base.TcpPORT, "Please specify a valid port number between 1025 and 65535")
 	flag.StringVar(&config, "c", "config.json", "Please specify a valid configuration file path")
+	flag.StringVar(&logfile, "l", base.LogFile, "Please specify a valid log file path or stdout/stderr")
+	flag.StringVar(&loglevel, "v", base.LogLevel, "Please specify log level: trace, debug, info, warn, error, fatal, panic")
 	flag.Parse()
+
+	err := logger.Init(loglevel, logfile)
+	if err != nil {
+		panic(err)
+	}
 
 	tcpPort, err := strconv.Atoi(port)
 	if err != nil || tcpPort > 65534 || tcpPort < 1025 {
-		log.Fatalf("TCP Port '%s' is not a number between 1025 and 65535", port)
+		logger.Log.Fatal().Msgf("TCP Port '%s' is not a number between 1025 and 65535", port)
 	}
 	if _, err := os.Stat(config); os.IsNotExist(err) {
-		log.Fatalf("Configuration file '%s' is not readable or is not present", config)
+		logger.Log.Fatal().Msgf("Configuration file '%s' is not readable or is not present", config)
 	}
 
 	err = base.InitializeConfiguration(config)
@@ -58,41 +69,36 @@ func main() {
 	}
 	conf := base.GetConfiguration()
 
-	if len(conf.SysConfig.Logfile) > 0 {
-		f, err := os.OpenFile(conf.SysConfig.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
-		if err != nil {
-			log.Printf("%s opening log file: %v", base.StrERROR, err)
-		} else {
-			defer f.Close()
-			log.SetOutput(f)
-		}
-	}
-
 	// Dropping user and group privileges (group must be first)
-
 	if len(conf.SysConfig.RunAsGroup) > 0 {
 		groupStrut, err := user.LookupGroup(conf.SysConfig.RunAsGroup)
 		if err != nil {
-			log.Fatalf("Error %s, could not run as group %s - terminating", err, conf.SysConfig.RunAsGroup)
+			logger.Log.Fatal().Msgf("Error %s, could not run as group '%s' - terminating", err, conf.SysConfig.RunAsGroup)
 		} else {
 			gid, err := strconv.Atoi(groupStrut.Gid)
 			if err != nil {
-				log.Fatalf("Error %s, could not run as group %s - terminating", err, conf.SysConfig.RunAsGroup)
+				logger.Log.Fatal().Msgf("Error %s, could not run as group '%s' - terminating", err, conf.SysConfig.RunAsGroup)
 			}
-			syscall.Setgid(gid)
+			err = syscall.Setgid(gid)
+			if err != nil {
+				logger.Log.Fatal().Msgf("Error %s, could not set the gid - terminating", err)
+			}
 		}
 	}
 
 	if len(conf.SysConfig.RunAsUser) > 0 {
 		userStrut, err := user.Lookup(conf.SysConfig.RunAsUser)
 		if err != nil {
-			log.Fatalf("Error %s, could not run as user %s - terminating", err, conf.SysConfig.RunAsUser)
+			logger.Log.Fatal().Msgf("Error %s, could not run as user '%s' - terminating", err, conf.SysConfig.RunAsUser)
 		} else {
 			uid, err := strconv.Atoi(userStrut.Uid)
 			if err != nil {
-				log.Fatalf("Error %s, could not run as user %s - terminating", err, conf.SysConfig.RunAsUser)
+				logger.Log.Fatal().Msgf("Error %s, could not run as user '%s' - terminating", err, conf.SysConfig.RunAsUser)
 			}
-			syscall.Setuid(uid)
+			err = syscall.Setuid(uid)
+			if err != nil {
+				logger.Log.Fatal().Msgf("Error %s, could not set the uid - terminating", err)
+			}
 		}
 	}
 
@@ -101,21 +107,27 @@ func main() {
 	}
 	err = base.InitializeDatabase()
 	if err != nil {
-		log.Fatalln(err, base.StrTerminated)
+		logger.Log.Fatal().Msgf("%s, %s", err, base.StrTerminated)
 	}
 	base.ProcessSignal()
-	log.Println("Listening to port: ", port)
+	logger.Log.Info().Msgf("Listening to port: %s", port)
 	listener, err := net.Listen("tcp4", ":"+port)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Log.Fatal().Msgf("Could not listen to tcp port %s, %s", port, err)
 	}
+	var count int = 0
 	defer listener.Close()
 	for {
+		logger.Log.Trace().Msgf("Listening to port: %s for new TCP connection", port)
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Printf("%s: %s", base.StrERROR, err)
-			return
+			logger.Log.Fatal().Msgf("TCP connection error: %s", err)
 		}
-		service.HandleConnection(conn)
+		logger.Log.Trace().Msgf("New TCP connection from %s", conn.RemoteAddr())
+		if count >= math.MaxInt {
+			count = 0
+		}
+		count++
+		go service.HandleConnection(conn, count)
 	}
 }
